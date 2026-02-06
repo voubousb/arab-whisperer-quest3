@@ -1,0 +1,13 @@
+project_id = "gohhhfvcagwqqpogfixi"
+
+[functions.admin-auth]
+verify_jwt = false
+
+[functions.azure-tts]
+verify_jwt = false
+
+[functions.generate-audio]
+verify_jwt = false
+
+[functions.find-match]
+verify_jwt = false

@@ -1,0 +1,347 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+/* Police Gagalin via CDN */
+@font-face {
+  font-family: 'Gagalin';
+  src: url('https://fonts.cdnfonts.com/s/15002/Gagalin-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* Palette Violet & Jaune - Style La Table des Savoirs */
+    --background: 270 30% 8%;
+    --foreground: 60 30% 96%;
+
+    --card: 270 25% 12%;
+    --card-foreground: 60 30% 96%;
+
+    --popover: 270 25% 10%;
+    --popover-foreground: 60 30% 96%;
+
+    --primary: 50 100% 55%;
+    --primary-foreground: 270 30% 8%;
+
+    --secondary: 270 70% 60%;
+    --secondary-foreground: 60 30% 96%;
+
+    --muted: 270 20% 18%;
+    --muted-foreground: 270 10% 60%;
+
+    --accent: 340 85% 60%;
+    --accent-foreground: 60 30% 96%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 270 20% 20%;
+    --input: 270 20% 20%;
+    --ring: 50 100% 55%;
+
+    --radius: 1rem;
+
+    /* Custom tokens - Violet & Jaune */
+    --violet: 270 70% 60%;
+    --violet-dark: 270 70% 45%;
+    --violet-light: 270 60% 75%;
+    --yellow: 50 100% 55%;
+    --yellow-light: 50 100% 70%;
+    --yellow-dark: 45 100% 45%;
+    --coral: 340 85% 60%;
+    --coral-light: 340 75% 70%;
+    
+    /* Rangs - couleurs */
+    --bronze: 30 60% 40%;
+    --bronze-light: 35 70% 55%;
+    --silver: 220 10% 60%;
+    --silver-light: 220 15% 75%;
+    --gold: 45 100% 50%;
+    --diamond: 185 80% 55%;
+
+    /* Gradients */
+    --gradient-yellow: linear-gradient(135deg, hsl(50 100% 55%), hsl(40 100% 50%));
+    --gradient-violet: linear-gradient(135deg, hsl(270 70% 60%), hsl(280 70% 50%));
+    --gradient-coral: linear-gradient(135deg, hsl(340 85% 60%), hsl(20 90% 55%));
+
+    /* Shadows */
+    --shadow-yellow: 0 10px 40px -10px hsl(50 100% 55% / 0.4);
+    --shadow-violet: 0 10px 40px -10px hsl(270 70% 60% / 0.4);
+    --shadow-coral: 0 10px 40px -10px hsl(340 85% 60% / 0.4);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.5);
+
+    --sidebar-background: 270 25% 10%;
+    --sidebar-foreground: 60 30% 96%;
+    --sidebar-primary: 50 100% 55%;
+    --sidebar-primary-foreground: 270 30% 8%;
+    --sidebar-accent: 270 25% 18%;
+    --sidebar-accent-foreground: 60 30% 96%;
+    --sidebar-border: 270 20% 20%;
+    --sidebar-ring: 50 100% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
+
+  .font-arabic {
+    font-family: 'Amiri', serif;
+  }
+  
+  .font-display {
+    font-family: 'Gagalin', 'Outfit', system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+  
+  .font-logo {
+    font-family: 'Gagalin', 'Outfit', system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+@layer components {
+  /* Cartes de menu principales - style rectangulaire */
+  .menu-card-yellow {
+    @apply bg-gradient-to-br from-primary via-yellow-400 to-amber-500 text-primary-foreground;
+    @apply shadow-lg transition-all duration-200;
+    @apply border border-primary/20;
+    box-shadow: var(--shadow-yellow);
+  }
+  
+  .menu-card-yellow:hover {
+    box-shadow: 0 20px 60px -10px hsl(50 100% 55% / 0.5);
+  }
+  
+  .menu-card-violet {
+    @apply bg-gradient-to-br from-secondary via-violet-500 to-purple-600 text-secondary-foreground;
+    @apply shadow-lg transition-all duration-200;
+    @apply border border-secondary/20;
+    box-shadow: var(--shadow-violet);
+  }
+  
+  .menu-card-violet:hover {
+    box-shadow: 0 20px 60px -10px hsl(270 70% 60% / 0.5);
+  }
+  
+  .menu-card-coral {
+    @apply bg-gradient-to-br from-accent via-rose-500 to-red-500 text-accent-foreground;
+    @apply shadow-lg transition-all duration-200;
+    @apply border border-accent/20;
+    box-shadow: var(--shadow-coral);
+  }
+  
+  .menu-card-coral:hover {
+    box-shadow: 0 20px 60px -10px hsl(340 85% 60% / 0.5);
+  }
+
+  .btn-yellow {
+    @apply bg-primary text-primary-foreground font-semibold px-8 py-4 rounded-2xl transition-all duration-200;
+    box-shadow: var(--shadow-yellow);
+  }
+  
+  .btn-yellow:hover {
+    @apply scale-105;
+    box-shadow: 0 15px 50px -10px hsl(50 100% 55% / 0.5);
+  }
+
+  .btn-violet {
+    @apply font-semibold px-8 py-4 rounded-2xl transition-all duration-200 text-foreground;
+    background: var(--gradient-violet);
+    box-shadow: var(--shadow-violet);
+  }
+  
+  .btn-violet:hover {
+    @apply scale-105;
+    box-shadow: 0 15px 50px -10px hsl(270 70% 60% / 0.5);
+  }
+
+  .btn-coral {
+    @apply font-semibold px-8 py-4 rounded-2xl transition-all duration-200 text-foreground;
+    background: var(--gradient-coral);
+    box-shadow: var(--shadow-coral);
+  }
+  
+  .btn-coral:hover {
+    @apply scale-105;
+    box-shadow: 0 15px 50px -10px hsl(340 85% 60% / 0.5);
+  }
+
+  .card-glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-2xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  .text-gradient-yellow {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-yellow);
+  }
+
+  .text-gradient-violet {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-violet);
+  }
+
+  .glow-yellow {
+    box-shadow: 0 0 60px 20px hsl(50 100% 55% / 0.15);
+  }
+
+  .glow-violet {
+    box-shadow: 0 0 60px 20px hsl(270 70% 55% / 0.15);
+  }
+
+  .arabic-letter-card {
+    @apply bg-card border border-border/50 rounded-xl p-4 transition-all duration-200 cursor-pointer;
+  }
+
+  .arabic-letter-card:hover {
+    @apply border-primary/50 scale-[1.03];
+    box-shadow: var(--shadow-yellow);
+  }
+
+  /* Rangs avec couleurs sémantiques */
+  .rank-bronze {
+    color: hsl(var(--bronze-light));
+  }
+
+  .rank-silver {
+    color: hsl(var(--silver-light));
+  }
+
+  .rank-gold {
+    color: hsl(var(--gold));
+  }
+
+  .rank-diamond {
+    color: hsl(var(--diamond));
+  }
+
+  .rank-master {
+    @apply text-purple-400;
+  }
+
+  .rank-grandmaster {
+    @apply text-pink-400;
+  }
+
+  .trophy-legend {
+    background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Progress bar avec une seule couleur */
+  .progress-single {
+    @apply bg-muted rounded-full overflow-hidden;
+  }
+  
+  .progress-single-bar {
+    @apply h-full rounded-full transition-all duration-300;
+    background: var(--gradient-yellow);
+  }
+
+  /* Menu cards like La Table des Savoirs */
+  .menu-card {
+    @apply relative overflow-hidden rounded-2xl transition-all duration-200 cursor-pointer;
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.8) 100%);
+    border: 2px solid hsl(var(--border) / 0.5);
+  }
+
+  .menu-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    border-color: hsl(var(--primary) / 0.5);
+  }
+
+  .menu-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, hsl(var(--primary) / 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .menu-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Premium badge */
+  .premium-badge {
+    @apply absolute top-2 right-2 px-2 py-1 text-xs font-bold rounded-full;
+    background: var(--gradient-yellow);
+    color: hsl(var(--primary-foreground));
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounceSubtle 2s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  from { filter: drop-shadow(0 0 20px hsl(50 100% 55% / 0.3)); }
+  to { filter: drop-shadow(0 0 40px hsl(50 100% 55% / 0.6)); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounceSubtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--secondary) / 0.8);
+}
