@@ -1881,19 +1881,16 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
       }
     }
     
-    // Pour les matchs en ligne, utiliser le matchId comme seed pour générer les mêmes mots
+    // Pour les matchs en ligne: même matchId => même seed => mêmes 10 mots dans le même ordre pour les deux joueurs
     if (onlineMatchInfo) {
-      const seed = onlineMatchInfo.matchId.split('-').reduce((acc, val) => acc + parseInt(val.slice(0, 8), 16), 0);
-      const seededRandom = (seed: number) => {
-        const x = Math.sin(seed++) * 10000;
+      const seed = onlineMatchInfo.matchId.split("").reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0);
+      const seededRandom = (s: number) => {
+        const x = Math.sin(s) * 10000;
         return x - Math.floor(x);
       };
-      let currentSeed = seed;
-      const shuffled = [...filteredWords].sort(() => {
-        currentSeed++;
-        return seededRandom(currentSeed) - 0.5;
-      });
-      return shuffled.slice(0, 10);
+      const withRand = filteredWords.map((w, i) => ({ w, r: seededRandom(seed + i) }));
+      withRand.sort((a, b) => a.r - b.r);
+      return withRand.slice(0, 10).map((x) => x.w);
     }
     
     const shuffled = filteredWords.sort(() => Math.random() - 0.5);
@@ -1932,13 +1929,27 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     if (showAnswer || !currentWord) return;
     
     if (playerFound && opponentFound) {
-      setPlayerScore(s => s + playerTimeRemaining);
-      setOpponentScore(s => s + opponentTimeRemaining);
-      
+      const newMyScore = playerScore + playerTimeRemaining;
+      const newOppScore = opponentScore + opponentTimeRemaining;
+      setPlayerScore(newMyScore);
+      setOpponentScore(newOppScore);
       setShowAnswer(true);
-      setTimeout(() => {
-        setCurrentRound(r => r + 1);
-      }, 1500);
+      
+      // Mettre à jour la manche en DB tout de suite pour que les deux joueurs avancent en même temps
+      if (onlineMatchInfo && user?.id) {
+        const isPlayer1 = onlineMatchInfo.isPlayer1;
+        const matchId = onlineMatchInfo.matchId;
+        supabase
+          .from("online_matches")
+          .update({
+            player1_score: isPlayer1 ? newMyScore : newOppScore,
+            player2_score: isPlayer1 ? newOppScore : newMyScore,
+            current_round: currentRound + 1,
+          })
+          .eq("id", matchId)
+          .then(({ error }) => { if (error) console.error("Erreur update round (both found):", error); });
+      }
+      setTimeout(() => setCurrentRound(r => r + 1), 1500);
       return;
     }
     
@@ -2047,11 +2058,11 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
         .single();
 
       if (data && !error) {
-        // Si le match a déjà des scores ou un round > 1, le réinitialiser pour une nouvelle partie
-        const needsReset = (data.player1_score > 0 || data.player2_score > 0 || data.current_round > 1);
+        const round = data.current_round ?? 1;
+        const finished = round > TOTAL_ROUNDS || data.status === "finished";
         
-        if (needsReset) {
-          // Réinitialiser le match dans la DB
+        // Réinitialiser le match en DB seulement si la partie précédente est terminée (pour pouvoir rejouer)
+        if (finished) {
           await supabase
             .from("online_matches")
             .update({
@@ -2063,11 +2074,19 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
             .eq("id", matchId);
         }
         
-        // Toujours commencer à 0
-        setPlayerScore(0);
-        setOpponentScore(0);
-        setCurrentRound(1);
-        previousOpponentScoreRef.current = 0;
+        // Afficher les scores cumulatifs en cours (ne pas réinitialiser en milieu de partie)
+        const p1 = data.player1_score ?? 0;
+        const p2 = data.player2_score ?? 0;
+        if (isPlayer1) {
+          setPlayerScore(p1);
+          setOpponentScore(p2);
+          previousOpponentScoreRef.current = p2;
+        } else {
+          setPlayerScore(p2);
+          setOpponentScore(p1);
+          previousOpponentScoreRef.current = p1;
+        }
+        setCurrentRound(finished ? 1 : round);
       }
     };
 
@@ -2143,42 +2162,37 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
   }, [currentRound]);
   
   const handleTimeUp = () => {
+    const myRoundPoints = playerFound ? playerTimeRemaining : 0;
+    const oppRoundPoints = opponentFound ? opponentTimeRemaining : 0;
+    const newMyScore = playerScore + myRoundPoints;
+    const newOppScore = opponentScore + oppRoundPoints;
+    
     if (playerFound) {
-      setPlayerScore(s => s + playerTimeRemaining);
+      setPlayerScore(newMyScore);
     } else {
-      // Le joueur n'a PAS trouvé à temps = DÉFAITE pour cette manche
       setPlayerFailed(true);
-      playGameOver(); // Son de défaite UNIQUEMENT si le joueur n'a pas trouvé
+      playGameOver();
     }
     if (opponentFound) {
-      setOpponentScore(s => s + opponentTimeRemaining);
+      setOpponentScore(newOppScore);
     }
-    
     setShowAnswer(true);
     
-    // Mettre à jour le round dans le match en ligne
-    const updateRound = () => {
-      if (onlineMatchInfo && user?.id) {
-        const matchId = onlineMatchInfo.matchId;
-        supabase
-          .from("online_matches")
-          .update({
-            current_round: currentRound + 1,
-          })
-          .eq("id", matchId)
-          .then(({ error }) => {
-            if (error) console.error("Erreur mise à jour round:", error);
-          });
-      }
-    };
-    
-    setTimeout(() => {
-      setCurrentRound(r => {
-        const newRound = r + 1;
-        updateRound();
-        return newRound;
-      });
-    }, 2000);
+    // Mettre à jour en DB tout de suite (scores cumulatifs + manche) pour que les deux joueurs avancent en même temps
+    if (onlineMatchInfo && user?.id) {
+      const isPlayer1 = onlineMatchInfo.isPlayer1;
+      const matchId = onlineMatchInfo.matchId;
+      supabase
+        .from("online_matches")
+        .update({
+          player1_score: isPlayer1 ? newMyScore : newOppScore,
+          player2_score: isPlayer1 ? newOppScore : newMyScore,
+          current_round: currentRound + 1,
+        })
+        .eq("id", matchId)
+        .then(({ error }) => { if (error) console.error("Erreur mise à jour round (time up):", error); });
+    }
+    setTimeout(() => setCurrentRound(r => r + 1), 2000);
   };
   
   const handleSubmit = useCallback((e: React.FormEvent) => {
