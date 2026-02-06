@@ -47,7 +47,7 @@ export const useGameSounds = () => {
   const playGameOver = useCallback(() => playSound('gameOver', 0.4), [playSound]);
   const playCorrect = useCallback(() => playSound('correct', 0.5), [playSound]);
   const playMatchFound = useCallback(() => playSound('matchFound', 0.6), [playSound]);
-  const playSearching = useCallback(() => playSound('searching', 0.3), [playSound]);
+  // playSearching retiré - son du vent désactivé
   const playWelcome = useCallback(() => playSound('welcome', 0.5), [playSound]);
   
   // Fonction pour jouer le son d'entrée une seule fois
@@ -68,7 +68,7 @@ export const useGameSounds = () => {
     playGameOver,
     playCorrect,
     playMatchFound,
-    playSearching,
+    // playSearching retiré - son du vent désactivé
     playWelcome,
     playWelcomeOnce,
   };

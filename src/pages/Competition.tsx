@@ -2076,6 +2076,15 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
           removeTrophies(Math.abs(trophiesChange));
           // Pas de son de défaite à la fin - juste à la perte individuelle
         }
+        
+        // Synchroniser les trophées avec Supabase pour persistance indéfinie
+        if (user?.id) {
+          // Utiliser setTimeout pour ne pas bloquer le rendu
+          setTimeout(async () => {
+            const store = useGameStore.getState();
+            await store.syncToSupabase(user.id);
+          }, 100);
+        }
       } else {
         if (won) {
           incrementGamesWon();
@@ -2189,35 +2198,35 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
       {/* Overlay semi-transparent */}
       <div className="absolute inset-0 bg-black/60" />
       
-      <div className="relative z-10 h-full flex flex-col p-2 sm:p-4">
+      <div className="relative z-10 h-full flex flex-col p-1 sm:p-2 md:p-4 overflow-hidden">
         {/* Zone de jeu principale avec scores sur les côtés */}
-        <div className="flex-1 flex items-center gap-2 sm:gap-4">
+        <div className="flex-1 flex items-center gap-1 sm:gap-2 md:gap-4 min-w-0">
           {/* Score joueur - gauche - couleur de l'avatar */}
-          <div className="flex flex-col items-center gap-1 sm:gap-2 bg-black/50 backdrop-blur-sm rounded-xl px-2 sm:px-4 py-2 sm:py-4 min-w-[70px] sm:min-w-[100px]">
+          <div className="flex flex-col items-center gap-0.5 sm:gap-1 md:gap-2 bg-black/50 backdrop-blur-sm rounded-lg sm:rounded-xl px-1.5 sm:px-2 md:px-4 py-1.5 sm:py-2 md:py-4 flex-shrink-0 w-[60px] sm:w-[70px] md:min-w-[100px]">
             <AvatarDisplay avatarId={playerAvatar} size="sm" />
-            <p className="text-xs sm:text-sm text-white/80 font-medium truncate max-w-[60px] sm:max-w-[80px]">{playerName}</p>
-            <p className="text-xl sm:text-3xl font-bold" style={{ color: avatarColor }}>{playerScore}</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-white/80 font-medium truncate w-full text-center">{playerName}</p>
+            <p className="text-lg sm:text-xl md:text-3xl font-bold" style={{ color: avatarColor }}>{playerScore}</p>
             {playerFound && !showAnswer && (
-              <p className="text-xs" style={{ color: avatarColor }}>+{playerTimeRemaining}</p>
+              <p className="text-[10px] sm:text-xs" style={{ color: avatarColor }}>+{playerTimeRemaining}</p>
             )}
           </div>
           
           {/* Carte du mot - centre */}
-          <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-1 sm:px-2">
             {/* INDICATEUR DE MANCHE au-dessus du compteur */}
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-2 sm:mb-3"
+              className="mb-1 sm:mb-2 md:mb-3"
             >
-              <span className="text-xs sm:text-sm text-white/90 font-medium bg-black/40 backdrop-blur-sm px-3 sm:px-4 py-1 sm:py-1.5 rounded-full">
+              <span className="text-[10px] sm:text-xs md:text-sm text-white/90 font-medium bg-black/40 backdrop-blur-sm px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5 rounded-full">
                 Manche {currentRound}/{TOTAL_ROUNDS}
               </span>
             </motion.div>
             
             {/* COMPTEUR ROND - unique, sans key sur timeLeft pour éviter les doublons */}
             <div
-              className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-3 sm:mb-4 transition-colors duration-300 ${
+              className={`w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center mb-2 sm:mb-3 md:mb-4 transition-colors duration-300 ${
                 timeLeft <= 3 
                   ? "bg-accent/80 text-white" 
                   : "bg-white/20 backdrop-blur-sm text-white"
@@ -2226,24 +2235,24 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
                 boxShadow: timeLeft <= 3 ? "0 0 20px rgba(255,100,100,0.5)" : "none"
               }}
             >
-              <span className="text-2xl sm:text-4xl font-bold">{timeLeft}</span>
+              <span className="text-xl sm:text-2xl md:text-4xl font-bold">{timeLeft}</span>
             </div>
             
             <motion.div
               key={currentWord.id}
               initial={{ opacity: 0, scale: 0.9, rotateY: -90 }}
               animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              className="card-glass p-4 sm:p-6 text-center w-full max-w-md"
+              className="card-glass p-2 sm:p-4 md:p-6 text-center w-full max-w-full sm:max-w-md"
             >
               <motion.p
-                className="font-arabic text-3xl sm:text-5xl text-primary mb-2 sm:mb-3"
+                className="font-arabic text-2xl sm:text-3xl md:text-5xl text-primary mb-1 sm:mb-2 md:mb-3"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 {currentWord.arabic}
               </motion.p>
               
-              <p className="text-sm sm:text-lg text-muted-foreground">
+              <p className="text-xs sm:text-sm md:text-lg text-muted-foreground">
                 {currentWord.phonetic}
               </p>
             </motion.div>
@@ -2268,7 +2277,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
             </AnimatePresence>
             
             {/* Zone de réponse */}
-            <div className="w-full max-w-md mt-3 sm:mt-4">
+            <div className="w-full max-w-full sm:max-w-md mt-2 sm:mt-3 md:mt-4">
               <AnimatePresence mode="wait">
                 {!showAnswer ? (
                   <motion.form
@@ -2277,7 +2286,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onSubmit={handleSubmit}
-                    className="flex gap-2"
+                    className="flex gap-1 sm:gap-2"
                   >
                     <input
                       type="text"
@@ -2286,12 +2295,12 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
                       placeholder={playerFound ? "✓ Trouvé !" : "Traduction..."}
                       autoFocus
                       disabled={playerFound}
-                      className={`flex-1 bg-white/10 backdrop-blur-sm border-2 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-lg text-white placeholder:text-white/50 focus:outline-none transition-colors ${
+                      className={`flex-1 bg-white/10 backdrop-blur-sm border-2 rounded-lg sm:rounded-xl px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm md:text-lg text-white placeholder:text-white/50 focus:outline-none transition-colors ${
                         playerFound ? "border-secondary bg-secondary/20" : "border-white/30 focus:border-primary"
                       }`}
                     />
                     {!playerFound && (
-                      <Button type="submit" className="btn-yellow px-4 sm:px-6 text-sm sm:text-base">
+                      <Button type="submit" className="btn-yellow px-2 sm:px-4 md:px-6 text-xs sm:text-sm md:text-base flex-shrink-0">
                         OK
                       </Button>
                     )}
@@ -2301,10 +2310,10 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
                     key="answer"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-center space-y-1 sm:space-y-2 bg-black/40 rounded-xl p-3 sm:p-4"
+                    className="text-center space-y-0.5 sm:space-y-1 md:space-y-2 bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4"
                   >
-                    <p className="text-muted-foreground text-xs sm:text-sm">La réponse était :</p>
-                    <p className="text-lg sm:text-2xl font-bold text-white">
+                    <p className="text-muted-foreground text-[10px] sm:text-xs md:text-sm">La réponse était :</p>
+                    <p className="text-sm sm:text-lg md:text-2xl font-bold text-white">
                       {currentWord.french}
                     </p>
                   </motion.div>
@@ -2314,12 +2323,12 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
           </div>
           
           {/* Score adversaire - droite - couleur de l'avatar adversaire */}
-          <div className="flex flex-col items-center gap-1 sm:gap-2 bg-black/50 backdrop-blur-sm rounded-xl px-2 sm:px-4 py-2 sm:py-4 min-w-[70px] sm:min-w-[100px]">
+          <div className="flex flex-col items-center gap-0.5 sm:gap-1 md:gap-2 bg-black/50 backdrop-blur-sm rounded-lg sm:rounded-xl px-1.5 sm:px-2 md:px-4 py-1.5 sm:py-2 md:py-4 flex-shrink-0 w-[60px] sm:w-[70px] md:min-w-[100px]">
             <AvatarDisplay avatarId={opponentAvatar} size="sm" />
-            <p className="text-xs sm:text-sm text-white/80 font-medium truncate max-w-[60px] sm:max-w-[80px]">{opponentName}</p>
-            <p className="text-xl sm:text-3xl font-bold" style={{ color: getAvatarById(opponentAvatar).color }}>{opponentScore}</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-white/80 font-medium truncate w-full text-center">{opponentName}</p>
+            <p className="text-lg sm:text-xl md:text-3xl font-bold" style={{ color: getAvatarById(opponentAvatar).color }}>{opponentScore}</p>
             {opponentFound && !showAnswer && (
-              <p className="text-xs" style={{ color: getAvatarById(opponentAvatar).color }}>+{opponentTimeRemaining}</p>
+              <p className="text-[10px] sm:text-xs" style={{ color: getAvatarById(opponentAvatar).color }}>+{opponentTimeRemaining}</p>
             )}
           </div>
         </div>
