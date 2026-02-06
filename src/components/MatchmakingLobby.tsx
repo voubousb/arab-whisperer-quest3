@@ -37,7 +37,7 @@ export const MatchmakingLobby = ({
   const [opponent, setOpponent] = useState("");
   const [countdown, setCountdown] = useState(3);
   const [searchTime, setSearchTime] = useState(0);
-  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimerRef = useRef<number | null>(null);
 
   // Arène: Camp d'entraînement pour IA, sinon arène du joueur
   const arena = isVsAI ? trainingArena : getArenaByTrophies(playerTrophies);
@@ -65,8 +65,11 @@ export const MatchmakingLobby = ({
   // Timer de recherche (max 60 secondes pour mode en ligne)
   useEffect(() => {
     if (stage !== "searching" || isVsAI) return;
-    
-    searchTimerRef.current = setInterval(() => {
+
+    // reset timer on (re)start
+    setSearchTime(0);
+
+    searchTimerRef.current = window.setInterval(() => {
       setSearchTime(prev => {
         if (prev >= 60) {
           // Timeout après 1 minute
@@ -77,13 +80,14 @@ export const MatchmakingLobby = ({
         return prev + 1;
       });
     }, 1000);
-    
+
     return () => {
-      if (searchTimerRef.current) {
-        clearInterval(searchTimerRef.current);
+      if (searchTimerRef.current !== null) {
+        window.clearInterval(searchTimerRef.current);
+        searchTimerRef.current = null;
       }
     };
-  }, [stage, isVsAI, matchmaking]);
+  }, [stage, isVsAI]);
 
   // Animation des points de chargement
   useEffect(() => {
