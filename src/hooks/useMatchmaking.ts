@@ -9,6 +9,7 @@ interface MatchmakingState {
   opponentAvatar: string | null;
   isPlayer1: boolean;
   error: string | null;
+  queueStartTime: number | null; // Timestamp ISO du serveur quand la queue a démarré
 }
 
 const MATCHMAKING_TIMEOUT = 60000; // 60 secondes
@@ -22,6 +23,7 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
     opponentAvatar: null,
     isPlayer1: false,
     error: null,
+    queueStartTime: null,
   });
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -100,13 +102,21 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
       // D'abord, nettoyer toute entrée existante
       await leaveQueue();
 
-      // Rejoindre la queue
-      const { error: insertError } = await supabase.from("matchmaking_queue").insert({
-        user_id: userId,
-        trophies: playerTrophies,
-      });
+      // Rejoindre la queue et récupérer le timestamp du serveur
+      const { data: queueEntry, error: insertError } = await supabase
+        .from("matchmaking_queue")
+        .insert({
+          user_id: userId,
+          trophies: playerTrophies,
+        })
+        .select("created_at")
+        .single();
 
       if (insertError) throw insertError;
+
+      // Stocker le timestamp du serveur pour synchronisation
+      const serverTimestamp = queueEntry?.created_at ? new Date(queueEntry.created_at).getTime() : Date.now();
+      setState((s) => ({ ...s, queueStartTime: serverTimestamp }));
 
       // Écouter les nouvelles parties via Realtime (backup si polling rate)
       const channel = supabase
@@ -225,6 +235,7 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
       opponentAvatar: null,
       isPlayer1: false,
       error: null,
+      queueStartTime: null,
     });
   }, []);
 

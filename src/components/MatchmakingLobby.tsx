@@ -37,7 +37,7 @@ export const MatchmakingLobby = ({
   const [opponent, setOpponent] = useState("");
   const [countdown, setCountdown] = useState(3);
   const [searchTime, setSearchTime] = useState(0);
-  const searchTimerRef = useRef<number | null>(null);
+  const updateTimerRef = useRef<number | null>(null);
 
   // Arène: Camp d'entraînement pour IA, sinon arène du joueur
   const arena = isVsAI ? trainingArena : getArenaByTrophies(playerTrophies);
@@ -63,31 +63,39 @@ export const MatchmakingLobby = ({
   }, [matchmaking.status, matchmaking.opponentName, playMatchFound]);
 
   // Timer de recherche (max 60 secondes pour mode en ligne)
+  // Basé sur le timestamp du serveur pour synchroniser entre clients
   useEffect(() => {
     if (stage !== "searching" || isVsAI) return;
-
-    // reset timer on (re)start
-    setSearchTime(0);
-
-    searchTimerRef.current = window.setInterval(() => {
-      setSearchTime(prev => {
-        if (prev >= 60) {
+    
+    // Fonction pour recalculer le temps écoulé basé sur le serveur
+    const updateElapsedTime = () => {
+      if (matchmaking.queueStartTime) {
+        const elapsedMs = Date.now() - matchmaking.queueStartTime;
+        const elapsedSecs = Math.floor(elapsedMs / 1000);
+        
+        setSearchTime(elapsedSecs);
+        
+        if (elapsedSecs >= 60) {
           // Timeout après 1 minute
           setStage("timeout");
           matchmaking.cancelMatchmaking();
-          return prev;
         }
-        return prev + 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (searchTimerRef.current !== null) {
-        window.clearInterval(searchTimerRef.current);
-        searchTimerRef.current = null;
       }
     };
-  }, [stage, isVsAI]);
+
+    // Update initial immédiat
+    updateElapsedTime();
+
+    // Mettre à jour toutes les 100ms pour réactivité (sans saut)
+    updateTimerRef.current = window.setInterval(updateElapsedTime, 100);
+
+    return () => {
+      if (updateTimerRef.current !== null) {
+        window.clearInterval(updateTimerRef.current);
+        updateTimerRef.current = null;
+      }
+    };
+  }, [stage, isVsAI, matchmaking.queueStartTime, matchmaking]);
 
   // Animation des points de chargement
   useEffect(() => {
@@ -148,8 +156,8 @@ export const MatchmakingLobby = ({
   }, [stage, countdown, onMatchFound, playClick, isVsAI, matchmaking]);
   
   const handleCancel = useCallback(() => {
-    if (searchTimerRef.current) {
-      clearInterval(searchTimerRef.current);
+    if (updateTimerRef.current) {
+      clearInterval(updateTimerRef.current);
     }
     matchmaking.cancelMatchmaking();
     onCancel?.();
