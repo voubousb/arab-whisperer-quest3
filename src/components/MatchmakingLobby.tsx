@@ -231,10 +231,10 @@ export const MatchmakingLobby = ({
               className="space-y-6"
             >
               <h2 className="text-3xl font-bold text-white">
-                Aucun adversaire trouvé
+                Aucune partie n'a été trouvée
               </h2>
               <p className="text-muted-foreground">
-                Aucun joueur disponible pour le moment. Réessaie plus tard !
+                Aucune partie n'a été trouvée en 60s. Réessaie plus tard !
               </p>
               <Button
                 onClick={handleCancel}
