@@ -210,7 +210,8 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
       
     } catch (error: any) {
       console.error("Erreur matchmaking:", error);
-      setState((s) => ({ ...s, status: "error", error: error.message }));
+      const message = error?.message || error?.error_description || (typeof error === "string" ? error : "Impossible de lancer le match. Réessaie.");
+      setState((s) => ({ ...s, status: "error", error: message }));
     }
   }, [userId, playerTrophies, leaveQueue, handleMatchFound, cancelMatchmaking]);
 
