@@ -8,11 +8,13 @@ import { useGameStore } from "@/store/gameStore";
 import { useGameSounds } from "@/hooks/useGameSounds";
 import { useElevenLabsSpeech } from "@/hooks/useElevenLabsSpeech";
 import { checkAnswerWithVariations } from "@/data/wordVariations";
+import { useAuth } from "@/hooks/useAuth";
 
 const WordOfTheDay = () => {
   const navigate = useNavigate();
   const { playClick, playSuccess, playError, playCorrect, playTrophy } = useGameSounds();
   const { speak } = useElevenLabsSpeech();
+  const { user } = useAuth();
   
   const {
     getDailyWord,
@@ -22,6 +24,7 @@ const WordOfTheDay = () => {
     dailyWon,
     resetDaily,
     dailyHistory,
+    syncToSupabase,
   } = useGameStore();
   
   const [answer, setAnswer] = useState("");
@@ -120,6 +123,13 @@ const WordOfTheDay = () => {
       setFeedback("correct");
       setSemanticProgress(100);
       setShowResult(true);
+      
+      // Synchroniser les trophées avec Supabase pour persistance indéfinie
+      if (user?.id) {
+        setTimeout(async () => {
+          await syncToSupabase(user.id);
+        }, 100);
+      }
     } else {
       playError();
       setFeedback("incorrect");

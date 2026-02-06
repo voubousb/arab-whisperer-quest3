@@ -47,16 +47,16 @@ export const useGameSounds = () => {
   const playGameOver = useCallback(() => playSound('gameOver', 0.4), [playSound]);
   const playCorrect = useCallback(() => playSound('correct', 0.5), [playSound]);
   const playMatchFound = useCallback(() => playSound('matchFound', 0.6), [playSound]);
-  // playSearching retiré - son du vent désactivé
-  const playWelcome = useCallback(() => playSound('welcome', 0.5), [playSound]);
+  // playSearching et playWelcome retirés - sons automatiques désactivés
+  // const playWelcome = useCallback(() => playSound('welcome', 0.5), [playSound]);
   
-  // Fonction pour jouer le son d'entrée une seule fois
-  const playWelcomeOnce = useCallback(() => {
-    if (!hasPlayedWelcome) {
-      hasPlayedWelcome = true;
-      playWelcome();
-    }
-  }, [playWelcome]);
+  // Fonction pour jouer le son d'entrée une seule fois - DÉSACTIVÉE
+  // const playWelcomeOnce = useCallback(() => {
+  //   if (!hasPlayedWelcome) {
+  //     hasPlayedWelcome = true;
+  //     playWelcome();
+  //   }
+  // }, [playWelcome]);
 
   return {
     playSound,
@@ -69,7 +69,7 @@ export const useGameSounds = () => {
     playCorrect,
     playMatchFound,
     // playSearching retiré - son du vent désactivé
-    playWelcome,
-    playWelcomeOnce,
+    // playWelcome retiré - son automatique désactivé
+    // playWelcomeOnce retiré - son automatique désactivé
   };
 };

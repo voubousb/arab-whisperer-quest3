@@ -1255,6 +1255,21 @@ const ClanView = ({ playerAvatarId, playerName, userId, onOpenAuth, onClose }: C
     }
     setBusy(true);
     try {
+      // Vérifier si l'utilisateur est déjà membre avant d'insérer (éviter duplicate key)
+      const { data: existingMember } = await supabase
+        .from("clan_members")
+        .select("id")
+        .eq("clan_id", clan.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (existingMember) {
+        // Déjà membre, juste rafraîchir
+        await refreshMyClan();
+        await refreshClans();
+        return;
+      }
+      
       const { error } = await supabase.from("clan_members").insert({
         clan_id: clan.id,
         user_id: userId,
@@ -1393,11 +1408,21 @@ const ClanView = ({ playerAvatarId, playerName, userId, onOpenAuth, onClose }: C
 
       if (!created) throw lastError || new Error("Erreur création clan");
 
-      const { error: joinError } = await supabase.from("clan_members").insert({
-        clan_id: created.id,
-        user_id: userId,
-      });
-      if (joinError) throw joinError;
+      // Vérifier si l'utilisateur est déjà membre avant d'insérer (éviter duplicate key)
+      const { data: existingMember } = await supabase
+        .from("clan_members")
+        .select("id")
+        .eq("clan_id", created.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (!existingMember) {
+        const { error: joinError } = await supabase.from("clan_members").insert({
+          clan_id: created.id,
+          user_id: userId,
+        });
+        if (joinError) throw joinError;
+      }
 
       playTrophy();
       setShowCreateModal(false);
@@ -2053,11 +2078,12 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
         previousOpponentScoreRef.current = opponentScore;
       }
       
-      setTimeout(() => {
-        if (gameWords[currentRound - 1]) {
-          speak(gameWords[currentRound - 1].arabic, { isVerb: gameWords[currentRound - 1].isVerb });
-        }
-      }, 300);
+      // Ne pas jouer automatiquement le son - l'utilisateur peut cliquer pour entendre
+      // setTimeout(() => {
+      //   if (gameWords[currentRound - 1]) {
+      //     speak(gameWords[currentRound - 1].arabic, { isVerb: gameWords[currentRound - 1].isVerb });
+      //   }
+      // }, 300);
     } else {
       // Fin du jeu
       incrementGamesPlayed();
