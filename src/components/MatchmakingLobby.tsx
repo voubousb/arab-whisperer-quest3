@@ -31,6 +31,13 @@ export const MatchmakingLobby = ({
 }: MatchmakingLobbyProps) => {
   const { playClick, playMatchFound } = useGameSounds();
   const matchmaking = useMatchmaking(playerTrophies, userId ?? null);
+  
+  // Réinitialiser le matchmaking quand on entre dans le lobby
+  useEffect(() => {
+    if (!isVsAI && userId) {
+      matchmaking.reset();
+    }
+  }, [isVsAI, userId, matchmaking]);
 
   const [stage, setStage] = useState<"searching" | "found" | "countdown" | "timeout" | "error">("searching");
   const [dots, setDots] = useState("");

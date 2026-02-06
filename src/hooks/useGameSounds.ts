@@ -10,8 +10,8 @@ const SOUNDS = {
   gameOver: 'https://assets.mixkit.co/active_storage/sfx/2658/2658-preview.mp3', // Défaite
   correct: 'https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3', // Bonne réponse rapide
   matchFound: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3', // Partie trouvée - fanfare courte
-  searching: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3', // Son de recherche/loading
-  welcome: 'https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3', // Son d'entrée sur le site
+  // searching retiré - son du vent qui dure 55-60 secondes désactivé
+  // welcome: 'https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3', // Son d'entrée sur le site - désactivé
 };
 
 type SoundType = keyof typeof SOUNDS;

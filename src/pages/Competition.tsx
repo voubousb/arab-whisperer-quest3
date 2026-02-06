@@ -134,6 +134,7 @@ const Competition = () => {
     setIsVsAI(vsAI);
     if (difficulty) setAIDifficulty(difficulty);
     setOnlineMatchInfo(null); // Reset match info
+    setLastGameResult(null); // Reset game result
     setGameMode("lobby");
   };
   
@@ -1999,14 +2000,20 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
           
           // Détecter si l'adversaire a trouvé (score a augmenté pendant ce round)
           const newOpponentScore = isPlayer1 ? (match.player2_score || 0) : (match.player1_score || 0);
-          if (newOpponentScore > previousOpponentScoreRef.current && !opponentFound && !showAnswer) {
-            // L'adversaire a trouvé ! Estimer le temps restant basé sur l'augmentation du score
-            const scoreIncrease = newOpponentScore - previousOpponentScoreRef.current;
-            if (scoreIncrease > 0 && scoreIncrease <= 10) {
-              setOpponentTimeRemaining(scoreIncrease);
-              setOpponentFound(true);
-            }
+          const scoreIncrease = newOpponentScore - previousOpponentScoreRef.current;
+          
+          // Si le score augmente et qu'on est dans le même round, l'adversaire a trouvé
+          if (scoreIncrease > 0 && scoreIncrease <= 10 && !showAnswer && currentRound === match.current_round) {
+            setOpponentTimeRemaining(scoreIncrease);
+            setOpponentFound(true);
           }
+          
+          // Si le round change, réinitialiser opponentFound
+          if (match.current_round && match.current_round !== currentRound) {
+            setOpponentFound(false);
+            setOpponentTimeRemaining(0);
+          }
+          
           previousOpponentScoreRef.current = newOpponentScore;
           
           // Synchroniser les scores
@@ -2021,12 +2028,17 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
           // Synchroniser le round
           if (match.current_round && match.current_round !== currentRound) {
             setCurrentRound(match.current_round);
+            // Réinitialiser opponentFound quand on change de round
+            setOpponentFound(false);
+            setOpponentTimeRemaining(0);
+            // Mettre à jour le score de référence pour le nouveau round (score actuel de l'adversaire)
+            previousOpponentScoreRef.current = newOpponentScore;
           }
         }
       )
       .subscribe();
 
-    // Charger l'état initial du match
+    // Charger l'état initial du match et réinitialiser si nécessaire
     const loadMatchState = async () => {
       const { data, error } = await supabase
         .from("online_matches")
@@ -2035,18 +2047,27 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
         .single();
 
       if (data && !error) {
-        if (isPlayer1) {
-          setPlayerScore(data.player1_score || 0);
-          setOpponentScore(data.player2_score || 0);
-          previousOpponentScoreRef.current = data.player2_score || 0;
-        } else {
-          setPlayerScore(data.player2_score || 0);
-          setOpponentScore(data.player1_score || 0);
-          previousOpponentScoreRef.current = data.player1_score || 0;
+        // Si le match a déjà des scores ou un round > 1, le réinitialiser pour une nouvelle partie
+        const needsReset = (data.player1_score > 0 || data.player2_score > 0 || data.current_round > 1);
+        
+        if (needsReset) {
+          // Réinitialiser le match dans la DB
+          await supabase
+            .from("online_matches")
+            .update({
+              player1_score: 0,
+              player2_score: 0,
+              current_round: 1,
+              status: "playing",
+            })
+            .eq("id", matchId);
         }
-        if (data.current_round) {
-          setCurrentRound(data.current_round);
-        }
+        
+        // Toujours commencer à 0
+        setPlayerScore(0);
+        setOpponentScore(0);
+        setCurrentRound(1);
+        previousOpponentScoreRef.current = 0;
       }
     };
 
@@ -2073,8 +2094,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
       
       // Réinitialiser le score précédent de l'adversaire pour le nouveau round
       if (onlineMatchInfo) {
-        const isPlayer1 = onlineMatchInfo.isPlayer1;
-        // Le score précédent est maintenant le score actuel de l'adversaire
+        // Le score précédent est maintenant le score actuel de l'adversaire au début du round
         previousOpponentScoreRef.current = opponentScore;
       }
       
