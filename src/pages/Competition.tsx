@@ -1977,15 +1977,26 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     return () => clearTimeout(aiTimer);
   }, [isVsAI, currentWord, showAnswer, aiDifficulty, opponentFound]);
 
-  // Synchronisation du match en ligne (initialise une seule fois et écoute les updates)
+  // Synchronisation du match en ligne - SCORES UNIQUEMENT (les rounds avancent localement)
   useEffect(() => {
     if (isVsAI || !onlineMatchInfo || !user?.id) return;
 
     const matchId = onlineMatchInfo.matchId;
     const isPlayer1 = onlineMatchInfo.isPlayer1;
-    const initRef = { called: false } as { called: boolean };
 
-    // Écouter les changements du match (mise à jour continue)
+    // Initialiser la DB une seule fois
+    supabase
+      .from("online_matches")
+      .update({
+        player1_score: 0,
+        player2_score: 0,
+        current_round: 1,
+        status: "playing",
+      })
+      .eq("id", matchId)
+      .then();
+
+    // Écouter uniquement les changements de SCORES (pas de round sync)
     const channel = supabase
       .channel(`match:${matchId}`)
       .on(
@@ -1999,91 +2010,31 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
         (payload) => {
           const match = payload.new as any;
 
-          // Détecter si l'adversaire a trouvé (score a augmenté pendant ce round)
-          const newOpponentScore = isPlayer1 ? (match.player2_score || 0) : (match.player1_score || 0);
-          const scoreIncrease = newOpponentScore - previousOpponentScoreRef.current;
-
-          // Si le score augmente et qu'on est dans le même round, l'adversaire a trouvé
-          if (scoreIncrease > 0 && scoreIncrease <= 10 && !showAnswer && currentRound === match.current_round) {
+          // NE synchroniser que les SCORES, pas les rounds
+          const opponentScore = isPlayer1 ? (match.player2_score || 0) : (match.player1_score || 0);
+          
+          // Détecter si l'adversaire a trouvé (score a augmenté)
+          const scoreIncrease = opponentScore - previousOpponentScoreRef.current;
+          if (scoreIncrease > 0 && scoreIncrease <= 10 && !showAnswer) {
             setOpponentTimeRemaining(scoreIncrease);
             setOpponentFound(true);
           }
 
-          // Si le round change, réinitialiser opponentFound
-          if (match.current_round && match.current_round !== currentRound) {
-            setOpponentFound(false);
-            setOpponentTimeRemaining(0);
-          }
+          previousOpponentScoreRef.current = opponentScore;
 
-          previousOpponentScoreRef.current = newOpponentScore;
-
-          // Synchroniser les scores
+          // Synchroniser UNIQUEMENT les scores (pas currentRound !)
           if (isPlayer1) {
-            setPlayerScore(match.player1_score || 0);
             setOpponentScore(match.player2_score || 0);
           } else {
-            setPlayerScore(match.player2_score || 0);
             setOpponentScore(match.player1_score || 0);
-          }
-
-          // Synchroniser le round si nécessaire
-          if (match.current_round && match.current_round !== currentRound) {
-            setCurrentRound(match.current_round);
-            setOpponentFound(false);
-            setOpponentTimeRemaining(0);
-            previousOpponentScoreRef.current = newOpponentScore;
           }
         }
       )
       .subscribe();
 
-    // Charger l'état initial du match et réinitialiser si nécessaire (appelé une seule fois)
-    const loadMatchState = async () => {
-      if (initRef.called) return;
-      initRef.called = true;
-
-      const { data, error } = await supabase
-        .from("online_matches")
-        .select("*")
-        .eq("id", matchId)
-        .single();
-
-      if (data && !error) {
-        // Si le match a déjà des scores ou un round > 1, le réinitialiser pour une nouvelle partie
-        const needsReset = (data.player1_score > 0 || data.player2_score > 0 || data.current_round > 1);
-
-        if (needsReset) {
-          // Réinitialiser le match dans la DB une seule fois
-          await supabase
-            .from("online_matches")
-            .update({
-              player1_score: 0,
-              player2_score: 0,
-              current_round: 1,
-              status: "playing",
-            })
-            .eq("id", matchId);
-
-          setPlayerScore(0);
-          setOpponentScore(0);
-          setCurrentRound(1);
-          previousOpponentScoreRef.current = 0;
-        } else {
-          // Initialiser l'état local avec les valeurs en base (si partie déjà initialisée proprement)
-          setPlayerScore(isPlayer1 ? (data.player1_score || 0) : (data.player2_score || 0));
-          setOpponentScore(isPlayer1 ? (data.player2_score || 0) : (data.player1_score || 0));
-          setCurrentRound(data.current_round || 1);
-          previousOpponentScoreRef.current = isPlayer1 ? (data.player2_score || 0) : (data.player1_score || 0);
-        }
-      }
-    };
-
-    loadMatchState().catch(err => console.error("Erreur loadMatchState:", err));
-
     return () => {
       supabase.removeChannel(channel);
     };
-    // Ne pas ré-exécuter à chaque changement de round pour éviter de redémarrer à 1
   }, [isVsAI, onlineMatchInfo, user?.id]);
   
   // Charger le mot suivant
@@ -2164,28 +2115,9 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     
     setShowAnswer(true);
     
-    // Mettre à jour le round dans le match en ligne
-    const updateRound = () => {
-      if (onlineMatchInfo && user?.id) {
-        const matchId = onlineMatchInfo.matchId;
-        supabase
-          .from("online_matches")
-          .update({
-            current_round: currentRound + 1,
-          })
-          .eq("id", matchId)
-          .then(({ error }) => {
-            if (error) console.error("Erreur mise à jour round:", error);
-          });
-      }
-    };
-    
+    // Avancer au round suivant (local uniquement, pas de sync DB pour les rounds)
     setTimeout(() => {
-      setCurrentRound(r => {
-        const newRound = r + 1;
-        updateRound();
-        return newRound;
-      });
+      setCurrentRound(r => r + 1);
     }, 2000);
   };
   
