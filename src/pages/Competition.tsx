@@ -147,9 +147,19 @@ const Competition = () => {
   }) => {
     if (matchInfo) {
       setOnlineMatchInfo(matchInfo);
+      // Ne pas mettre gameMode ici - laisser useEffect le faire quand onlineMatchInfo est vraiment défini
+    } else {
+      // Pour IA, démarrer immédiatement
+      setGameMode("playing");
     }
-    setGameMode("playing");
   };
+
+  // Déclencher gameMode="playing" APRÈS que onlineMatchInfo soit défini
+  useEffect(() => {
+    if (onlineMatchInfo && gameMode === "lobby") {
+      setGameMode("playing");
+    }
+  }, [onlineMatchInfo, gameMode]);
   
   const handleGameComplete = (result: { won: boolean; playerScore: number; opponentScore: number; trophiesChange: number }) => {
     setLastGameResult(result);
