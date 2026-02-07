@@ -13,6 +13,7 @@ import { useElevenLabsSpeech } from "@/hooks/useElevenLabsSpeech";
 import { MatchmakingLobby } from "@/components/MatchmakingLobby";
 import { VictoryScreen } from "@/components/VictoryScreen";
 import { AvatarDisplay } from "@/components/AvatarDisplay";
+import { PremiumModal } from "@/components/PremiumModal";
 import { avatars, getAvatarById } from "@/data/avatars";
 import { checkAnswerWithVariations } from "@/data/wordVariations";
 import { getWordDifficulty, getWordsForArena, Difficulty } from "@/data/wordDifficulty";
@@ -88,6 +89,7 @@ const Competition = () => {
   } | null>(null);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [pendingQuitAction, setPendingQuitAction] = useState<"menu" | "home" | null>(null);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   
   const arena = getArenaByTrophies(player.trophies);
   
@@ -206,6 +208,9 @@ const Competition = () => {
               <Trophy className="w-5 h-5 text-primary" />
               <span className="font-bold text-primary">{player.trophies}</span>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowPremiumModal(true)} className="mr-2">
+              Premium
+            </Button>
             <AvatarDisplay avatarId={player.avatarId || "tree"} size="sm" />
           </div>
         </div>
@@ -219,6 +224,7 @@ const Competition = () => {
       </header>
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <PremiumModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} />
       
       <main className="container max-w-4xl mx-auto p-4">
         <AnimatePresence mode="wait">
