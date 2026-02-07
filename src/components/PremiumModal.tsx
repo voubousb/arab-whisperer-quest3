@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
 import { Button } from "@/components/ui/button";
 
 interface PremiumModalProps {
@@ -29,15 +28,32 @@ export const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose }) =
       }
 
       const data = await res.json();
+
+      // Si le backend renvoie une URL de redirection Checkout, rediriger directement
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      // Sinon, si le backend renvoie sessionId et que la clé publique est configurée,
+      // essayer d'initialiser stripe.js dynamiquement (optionnel)
       const sessionId = data.sessionId;
-
       const stripeKey = import.meta.env.VITE_STRIPE_PK as string | undefined;
-      if (!stripeKey) throw new Error("VITE_STRIPE_PK non configurée");
-
-      const stripe = await loadStripe(stripeKey);
-      if (!stripe) throw new Error("Impossible d'initialiser Stripe");
-
-      await stripe.redirectToCheckout({ sessionId });
+      if (sessionId && stripeKey) {
+        try {
+          const { loadStripe } = await import('@stripe/stripe-js');
+          const stripe = await loadStripe(stripeKey);
+          if (!stripe) throw new Error('Impossible d\'initialiser Stripe');
+          await stripe.redirectToCheckout({ sessionId });
+        } catch (err) {
+          // Si l'import échoue, tomber en fallback vers URL si fournie
+          console.warn('Stripe dynamic import failed, use server URL if available', err);
+          if (data.url) window.location.href = data.url;
+          else throw err;
+        }
+      } else {
+        throw new Error('Réponse du serveur invalide pour la session de paiement');
+      }
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Erreur lors de la création du paiement");
