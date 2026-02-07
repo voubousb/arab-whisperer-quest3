@@ -1837,6 +1837,15 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
   const { addTrophies, removeTrophies, incrementGamesPlayed, incrementGamesWon } = useGameStore();
   const { user } = useAuth();
   
+  // Log au démarrage du composant
+  console.log("[GameArena RENDER]", {
+    isVsAI,
+    hasOnlineMatch: !!onlineMatchInfo,
+    matchStartAt,
+    now: Date.now(),
+    timeUntilStart: matchStartAt ? matchStartAt - Date.now() : null,
+  });
+  
   const [currentRound, setCurrentRound] = useState(1);
   const [playerScore, setPlayerScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -1863,6 +1872,9 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
   
   // Couleur de l'avatar pour les points
   const avatarColor = getAvatarById(playerAvatar).color;
+  
+  // Ref pour tracker si on a déjà déclenché le start (évite les doublons)
+  const gameStartedRef = useRef(false);
   
   // Pseudo et avatar adversaire (réel si match en ligne, simulé sinon)
   const [opponentName] = useState(() => {
@@ -1932,21 +1944,63 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     return normalized;
   };
   
-  // Attendre le matchStartAt avant de démarrer le jeu (synchronisation pour mode en ligne)
+  // Fallback: Si en mode en ligne et qu'on n'a pas reçu matchStartAt après 2s, démarrer quand même
   useEffect(() => {
-    if (isVsAI || !matchStartAt || gameStarted) return;
-
-    const check = () => {
-      if (Date.now() >= matchStartAt) {
+    if (isVsAI || gameStartedRef.current) return;
+    
+    // Si matchStartAt est reçu, c'est bon, l'autre effect s'en chargera
+    if (matchStartAt) return;
+    
+    console.warn("[GameArena] FALLBACK: Pas de matchStartAt, démarrage automatique après 2s");
+    
+    const timer = setTimeout(() => {
+      if (!gameStartedRef.current) {
+        console.log("[GameArena] FALLBACK: Démarrage automatique");
+        gameStartedRef.current = true;
         setGameStarted(true);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [isVsAI, matchStartAt]);
+  useEffect(() => {
+    if (isVsAI || !matchStartAt || gameStartedRef.current) return;
+
+    console.log("[GameArena] Attente du matchStartAt...", {
+      now: Date.now(),
+      matchStartAt,
+      timeLeft: matchStartAt - Date.now(),
+    });
+
+    const startCheck = () => {
+      const timeUntilStart = matchStartAt - Date.now();
+      
+      if (timeUntilStart <= 0) {
+        if (!gameStartedRef.current) {
+          gameStartedRef.current = true;
+          console.log("[GameArena] Démarrage du jeu!");
+          setGameStarted(true);
+        }
         return;
       }
-      // Recheck toutes les 50ms
-      setTimeout(check, 50);
+      
+      // Recheck toutes les 10ms pour haute précision
+      setTimeout(startCheck, 10);
     };
 
-    check();
-  }, [isVsAI, matchStartAt, gameStarted]);
+    startCheck();
+    
+    // FALLBACK: Si matchStartAt n'est jamais atteint (horloge client décalée?), forcer le démarrage après 10s
+    const fallbackTimer = setTimeout(() => {
+      if (!gameStartedRef.current) {
+        console.warn("[GameArena] FALLBACK: Forçage du démarrage (matchStartAt non atteint)");
+        gameStartedRef.current = true;
+        setGameStarted(true);
+      }
+    }, 10000);
+    
+    return () => clearTimeout(fallbackTimer);
+  }, [isVsAI, matchStartAt]);
 
   // Timer - se termine quand les deux ont trouvé OU quand temps écoulé
   useEffect(() => {
@@ -2124,6 +2178,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
   // Charger le mot suivant (ne pas commencer avant gameStarted)
   useEffect(() => {
     if (currentRound <= TOTAL_ROUNDS && gameStarted) {
+      console.log("[GameArena] Chargement manche", currentRound);
       setCurrentWord(gameWords[currentRound - 1]);
       setTimeLeft(10);
       setAnswer("");

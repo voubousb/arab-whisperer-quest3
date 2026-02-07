@@ -148,6 +148,7 @@ export const MatchmakingLobby = ({
           // Lancer la partie exactement maintenant
           if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
             startedRef.current = true;
+            console.log("[MatchmakingLobby] Appel onMatchFound avec matchStartAt =", matchmaking.matchStartAt);
             onMatchFound({
               matchId: matchmaking.matchId,
               opponentId: matchmaking.opponentId,
@@ -187,6 +188,7 @@ export const MatchmakingLobby = ({
       // Passer les infos du match si c'est un match en ligne
       if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
         startedRef.current = true;
+        console.log("[MatchmakingLobby countdown] Appel onMatchFound avec matchStartAt =", matchmaking.matchStartAt);
         onMatchFound({
           matchId: matchmaking.matchId,
           opponentId: matchmaking.opponentId,
