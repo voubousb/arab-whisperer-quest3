@@ -119,19 +119,30 @@ export const MatchmakingLobby = ({
     if (stage !== "countdown") return;
     
     if (countdown === 0) {
-      // Passer les infos du match si c'est un match en ligne
-      if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
-        onMatchFound({
-          matchId: matchmaking.matchId,
-          opponentId: matchmaking.opponentId,
-          opponentName: matchmaking.opponentName || "Adversaire",
-          opponentAvatar: matchmaking.opponentAvatar || "tree",
-          isPlayer1: matchmaking.isPlayer1,
-        });
-      } else {
+      // Si entraînement (IA) : démarrer sans infos de match
+      if (isVsAI) {
         onMatchFound();
+        return;
       }
-      return;
+
+      // Pour les matchs en ligne, ne démarrer que si le match a bien été créé
+      if (!isVsAI) {
+        if (matchmaking.matchId && matchmaking.opponentId) {
+          onMatchFound({
+            matchId: matchmaking.matchId,
+            opponentId: matchmaking.opponentId,
+            opponentName: matchmaking.opponentName || "Adversaire",
+            opponentAvatar: matchmaking.opponentAvatar || "tree",
+            isPlayer1: matchmaking.isPlayer1,
+          });
+          return;
+        }
+
+        // Pas d'adversaire réel — passer en timeout pour éviter de lancer une partie vide
+        setStage("timeout");
+        matchmaking.cancelMatchmaking();
+        return;
+      }
     }
 
     playClick();
