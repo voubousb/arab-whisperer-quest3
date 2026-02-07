@@ -80,6 +80,7 @@ const Competition = () => {
     opponentAvatar: string;
     isPlayer1: boolean;
   } | null>(null);
+  const [matchStartAt, setMatchStartAt] = useState<number | null>(null);
   const [lastGameResult, setLastGameResult] = useState<{
     won: boolean;
     playerScore: number;
@@ -144,9 +145,11 @@ const Competition = () => {
     opponentName: string;
     opponentAvatar: string;
     isPlayer1: boolean;
+    matchStartAt?: number | null;
   }) => {
     if (matchInfo) {
       setOnlineMatchInfo(matchInfo);
+      setMatchStartAt(matchInfo.matchStartAt ?? null);
     }
     setGameMode("playing");
   };
@@ -246,6 +249,7 @@ const Competition = () => {
               playerName={player.name}
               playerAvatar={player.avatarId || "tree"}
               onlineMatchInfo={onlineMatchInfo}
+              matchStartAt={matchStartAt}
               onComplete={handleGameComplete}
             />
           )}
@@ -1823,10 +1827,11 @@ interface GameArenaProps {
     opponentAvatar: string;
     isPlayer1: boolean;
   } | null;
+  matchStartAt?: number | null;
   onComplete: (result: { won: boolean; playerScore: number; opponentScore: number; trophiesChange: number }) => void;
 }
 
-const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, playerAvatar, onlineMatchInfo, onComplete }: GameArenaProps) => {
+const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, playerAvatar, onlineMatchInfo, matchStartAt, onComplete }: GameArenaProps) => {
   const { playClick, playCorrect, playError, playTrophy, playGameOver } = useGameSounds();
   const { speak } = useElevenLabsSpeech();
   const { addTrophies, removeTrophies, incrementGamesPlayed, incrementGamesWon } = useGameStore();
@@ -1852,6 +1857,9 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
   
   // Message de félicitation
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Attendre playerMatchStartAt avant de démarrer le jeu (pour synchroniser les deux joueurs en ligne)
+  const [gameStarted, setGameStarted] = useState(isVsAI); // true immédiatement pour IA, false pour en ligne jusqu'au matchStartAt
   
   // Couleur de l'avatar pour les points
   const avatarColor = getAvatarById(playerAvatar).color;
@@ -1924,9 +1932,25 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     return normalized;
   };
   
+  // Attendre le matchStartAt avant de démarrer le jeu (synchronisation pour mode en ligne)
+  useEffect(() => {
+    if (isVsAI || !matchStartAt || gameStarted) return;
+
+    const check = () => {
+      if (Date.now() >= matchStartAt) {
+        setGameStarted(true);
+        return;
+      }
+      // Recheck toutes les 50ms
+      setTimeout(check, 50);
+    };
+
+    check();
+  }, [isVsAI, matchStartAt, gameStarted]);
+
   // Timer - se termine quand les deux ont trouvé OU quand temps écoulé
   useEffect(() => {
-    if (showAnswer || !currentWord) return;
+    if (showAnswer || !currentWord || !gameStarted) return;
     
     if (playerFound && opponentFound) {
       const newMyScore = playerScore + playerTimeRemaining;
@@ -1965,7 +1989,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [currentWord, showAnswer, playerFound, opponentFound]);
+  }, [currentWord, showAnswer, playerFound, opponentFound, gameStarted]);
   
   // Simuler l'IA qui répond (seulement si vs IA)
   useEffect(() => {
@@ -2097,9 +2121,9 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     };
   }, [isVsAI, onlineMatchInfo, currentRound, user?.id, opponentFound, showAnswer]);
   
-  // Charger le mot suivant
+  // Charger le mot suivant (ne pas commencer avant gameStarted)
   useEffect(() => {
-    if (currentRound <= TOTAL_ROUNDS) {
+    if (currentRound <= TOTAL_ROUNDS && gameStarted) {
       setCurrentWord(gameWords[currentRound - 1]);
       setTimeLeft(10);
       setAnswer("");
@@ -2159,7 +2183,7 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
       
       onComplete({ won, playerScore, opponentScore, trophiesChange });
     }
-  }, [currentRound]);
+  }, [currentRound, gameStarted]);
   
   const handleTimeUp = () => {
     const myRoundPoints = playerFound ? playerTimeRemaining : 0;
@@ -2336,10 +2360,23 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
               )}
             </AnimatePresence>
             
+            {/* Attendre le démarrage de la partie (synchronisation pour en ligne) */}
+            {!gameStarted && !isVsAI && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-2 sm:mt-3 md:mt-4 text-center"
+              >
+                <p className="text-muted-foreground text-xs sm:text-sm md:text-base animate-pulse">
+                  En attente du démarrage...
+                </p>
+              </motion.div>
+            )}
+
             {/* Zone de réponse */}
             <div className="w-full max-w-full sm:max-w-md mt-2 sm:mt-3 md:mt-4">
               <AnimatePresence mode="wait">
-                {!showAnswer ? (
+                {!showAnswer && gameStarted ? (
                   <motion.form
                     key="input"
                     initial={{ opacity: 0 }}

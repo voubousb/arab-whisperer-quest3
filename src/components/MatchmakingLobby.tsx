@@ -12,6 +12,7 @@ interface OnlineMatchInfo {
   opponentName: string;
   opponentAvatar: string;
   isPlayer1: boolean;
+  matchStartAt?: number | null; // Timestamp (ms) quand la partie doit démarrer
 }
 
 interface MatchmakingLobbyProps {
@@ -146,12 +147,14 @@ export const MatchmakingLobby = ({
           setStage("countdown");
           // Lancer la partie exactement maintenant
           if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
+            startedRef.current = true;
             onMatchFound({
               matchId: matchmaking.matchId,
               opponentId: matchmaking.opponentId,
               opponentName: matchmaking.opponentName || "Adversaire",
               opponentAvatar: matchmaking.opponentAvatar || "tree",
               isPlayer1: matchmaking.isPlayer1,
+              matchStartAt: matchmaking.matchStartAt,
             });
           } else {
             onMatchFound();
@@ -190,6 +193,7 @@ export const MatchmakingLobby = ({
           opponentName: matchmaking.opponentName || "Adversaire",
           opponentAvatar: matchmaking.opponentAvatar || "tree",
           isPlayer1: matchmaking.isPlayer1,
+          matchStartAt: matchmaking.matchStartAt,
         });
       } else {
         startedRef.current = true;
