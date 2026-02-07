@@ -1977,14 +1977,15 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
     return () => clearTimeout(aiTimer);
   }, [isVsAI, currentWord, showAnswer, aiDifficulty, opponentFound]);
 
-  // Synchronisation du match en ligne
+  // Synchronisation du match en ligne (initialise une seule fois et écoute les updates)
   useEffect(() => {
     if (isVsAI || !onlineMatchInfo || !user?.id) return;
 
     const matchId = onlineMatchInfo.matchId;
     const isPlayer1 = onlineMatchInfo.isPlayer1;
+    const initRef = { called: false } as { called: boolean };
 
-    // Écouter les changements du match
+    // Écouter les changements du match (mise à jour continue)
     const channel = supabase
       .channel(`match:${matchId}`)
       .on(
@@ -1995,27 +1996,27 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
           table: "online_matches",
           filter: `id=eq.${matchId}`,
         },
-        async (payload) => {
+        (payload) => {
           const match = payload.new as any;
-          
+
           // Détecter si l'adversaire a trouvé (score a augmenté pendant ce round)
           const newOpponentScore = isPlayer1 ? (match.player2_score || 0) : (match.player1_score || 0);
           const scoreIncrease = newOpponentScore - previousOpponentScoreRef.current;
-          
+
           // Si le score augmente et qu'on est dans le même round, l'adversaire a trouvé
           if (scoreIncrease > 0 && scoreIncrease <= 10 && !showAnswer && currentRound === match.current_round) {
             setOpponentTimeRemaining(scoreIncrease);
             setOpponentFound(true);
           }
-          
+
           // Si le round change, réinitialiser opponentFound
           if (match.current_round && match.current_round !== currentRound) {
             setOpponentFound(false);
             setOpponentTimeRemaining(0);
           }
-          
+
           previousOpponentScoreRef.current = newOpponentScore;
-          
+
           // Synchroniser les scores
           if (isPlayer1) {
             setPlayerScore(match.player1_score || 0);
@@ -2024,22 +2025,23 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
             setPlayerScore(match.player2_score || 0);
             setOpponentScore(match.player1_score || 0);
           }
-          
-          // Synchroniser le round
+
+          // Synchroniser le round si nécessaire
           if (match.current_round && match.current_round !== currentRound) {
             setCurrentRound(match.current_round);
-            // Réinitialiser opponentFound quand on change de round
             setOpponentFound(false);
             setOpponentTimeRemaining(0);
-            // Mettre à jour le score de référence pour le nouveau round (score actuel de l'adversaire)
             previousOpponentScoreRef.current = newOpponentScore;
           }
         }
       )
       .subscribe();
 
-    // Charger l'état initial du match et réinitialiser si nécessaire
+    // Charger l'état initial du match et réinitialiser si nécessaire (appelé une seule fois)
     const loadMatchState = async () => {
+      if (initRef.called) return;
+      initRef.called = true;
+
       const { data, error } = await supabase
         .from("online_matches")
         .select("*")
@@ -2049,9 +2051,9 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
       if (data && !error) {
         // Si le match a déjà des scores ou un round > 1, le réinitialiser pour une nouvelle partie
         const needsReset = (data.player1_score > 0 || data.player2_score > 0 || data.current_round > 1);
-        
+
         if (needsReset) {
-          // Réinitialiser le match dans la DB
+          // Réinitialiser le match dans la DB une seule fois
           await supabase
             .from("online_matches")
             .update({
@@ -2061,22 +2063,28 @@ const GameArena = ({ isVsAI, aiDifficulty, arena, playerTrophies, playerName, pl
               status: "playing",
             })
             .eq("id", matchId);
+
+          setPlayerScore(0);
+          setOpponentScore(0);
+          setCurrentRound(1);
+          previousOpponentScoreRef.current = 0;
+        } else {
+          // Initialiser l'état local avec les valeurs en base (si partie déjà initialisée proprement)
+          setPlayerScore(isPlayer1 ? (data.player1_score || 0) : (data.player2_score || 0));
+          setOpponentScore(isPlayer1 ? (data.player2_score || 0) : (data.player1_score || 0));
+          setCurrentRound(data.current_round || 1);
+          previousOpponentScoreRef.current = isPlayer1 ? (data.player2_score || 0) : (data.player1_score || 0);
         }
-        
-        // Toujours commencer à 0
-        setPlayerScore(0);
-        setOpponentScore(0);
-        setCurrentRound(1);
-        previousOpponentScoreRef.current = 0;
       }
     };
 
-    loadMatchState();
+    loadMatchState().catch(err => console.error("Erreur loadMatchState:", err));
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isVsAI, onlineMatchInfo, currentRound, user?.id, opponentFound, showAnswer]);
+    // Ne pas ré-exécuter à chaque changement de round pour éviter de redémarrer à 1
+  }, [isVsAI, onlineMatchInfo, user?.id]);
   
   // Charger le mot suivant
   useEffect(() => {
