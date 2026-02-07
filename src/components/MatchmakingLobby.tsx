@@ -38,6 +38,7 @@ export const MatchmakingLobby = ({
   const [countdown, setCountdown] = useState(3);
   const [searchTime, setSearchTime] = useState(0);
   const updateTimerRef = useRef<number | null>(null);
+  const startedRef = useRef(false);
 
   // Arène: Camp d'entraînement pour IA, sinon arène du joueur
   const arena = isVsAI ? trainingArena : getArenaByTrophies(playerTrophies);
@@ -120,19 +121,69 @@ export const MatchmakingLobby = ({
   // Passage au countdown après "found"
   useEffect(() => {
     if (stage !== "found") return;
-    const timer = setTimeout(() => {
-      setStage("countdown");
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [stage]);
+
+    // Si pas de start_at fourni, conserver le comportement précédent
+    if (!matchmaking.matchStartAt) {
+      const timer = setTimeout(() => setStage("countdown"), 1500);
+      return () => clearTimeout(timer);
+    }
+
+    let started = false;
+
+    const tick = () => {
+      // calculer l'offset client <-> serveur si disponible
+      const offset = (matchmaking.queueStartTime && matchmaking.queueClientTime)
+        ? (matchmaking.queueStartTime - matchmaking.queueClientTime)
+        : 0;
+      const adjustedNow = Date.now() + offset;
+      const msLeft = (matchmaking.matchStartAt ?? 0) - adjustedNow;
+
+      if (msLeft <= 0) {
+        if (!started) {
+          started = true;
+          startedRef.current = true;
+          setCountdown(0);
+          setStage("countdown");
+          // Lancer la partie exactement maintenant
+          if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
+            onMatchFound({
+              matchId: matchmaking.matchId,
+              opponentId: matchmaking.opponentId,
+              opponentName: matchmaking.opponentName || "Adversaire",
+              opponentAvatar: matchmaking.opponentAvatar || "tree",
+              isPlayer1: matchmaking.isPlayer1,
+            });
+          } else {
+            onMatchFound();
+          }
+        }
+        return;
+      }
+
+      // Quand il reste <= 3000ms, passer à l'affichage grand countdown (3,2,1)
+      if (msLeft <= 3000) {
+        const secs = Math.max(1, Math.ceil(msLeft / 1000));
+        setCountdown(secs);
+        setStage("countdown");
+      }
+    };
+
+    // tick immédiatement puis fréquemment
+    tick();
+    const iv = window.setInterval(tick, 100);
+    return () => window.clearInterval(iv);
+  }, [stage, matchmaking.matchStartAt, matchmaking.matchId, matchmaking.opponentId, matchmaking.opponentName, matchmaking.opponentAvatar, matchmaking.isPlayer1, isVsAI, onMatchFound]);
 
   // Countdown final
   useEffect(() => {
     if (stage !== "countdown") return;
     
     if (countdown === 0) {
+      // Eviter double appel si déjà démarré depuis la synchro serveur
+      if (startedRef.current) return;
       // Passer les infos du match si c'est un match en ligne
       if (!isVsAI && matchmaking.matchId && matchmaking.opponentId) {
+        startedRef.current = true;
         onMatchFound({
           matchId: matchmaking.matchId,
           opponentId: matchmaking.opponentId,
@@ -141,6 +192,7 @@ export const MatchmakingLobby = ({
           isPlayer1: matchmaking.isPlayer1,
         });
       } else {
+        startedRef.current = true;
         onMatchFound();
       }
       return;

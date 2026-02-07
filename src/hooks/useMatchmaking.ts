@@ -10,6 +10,8 @@ interface MatchmakingState {
   isPlayer1: boolean;
   error: string | null;
   queueStartTime: number | null; // Timestamp ISO du serveur quand la queue a démarré
+  queueClientTime: number | null; // Timestamp local quand on a reçu queueStartTime
+  matchStartAt: number | null; // Timestamp (ms) quand la partie doit réellement démarrer
 }
 
 const MATCHMAKING_TIMEOUT = 60000; // 60 secondes
@@ -24,6 +26,8 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
     isPlayer1: false,
     error: null,
     queueStartTime: null,
+    queueClientTime: null,
+    matchStartAt: null,
   });
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -65,6 +69,7 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
       opponentAvatar: opponentProfile?.avatar_url || "tree",
       isPlayer1,
       error: null,
+      matchStartAt: match.start_at ? new Date(match.start_at).getTime() : null,
     });
   }, [leaveQueue]);
 
@@ -116,7 +121,8 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
 
       // Stocker le timestamp du serveur pour synchronisation
       const serverTimestamp = queueEntry?.created_at ? new Date(queueEntry.created_at).getTime() : Date.now();
-      setState((s) => ({ ...s, queueStartTime: serverTimestamp }));
+      const clientNow = Date.now();
+      setState((s) => ({ ...s, queueStartTime: serverTimestamp, queueClientTime: clientNow }));
 
       // Écouter les nouvelles parties via Realtime (backup si polling rate)
       const channel = supabase
@@ -201,6 +207,7 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
               opponentAvatar: oppProfile?.avatar_url || "tree",
               isPlayer1: isP1,
               error: null,
+              matchStartAt: data.start_at ? Date.parse(data.start_at) : null,
             });
           }
         } catch (err) {
@@ -236,6 +243,8 @@ export const useMatchmaking = (playerTrophies: number, userId: string | null) =>
       isPlayer1: false,
       error: null,
       queueStartTime: null,
+      queueClientTime: null,
+      matchStartAt: null,
     });
   }, []);
 

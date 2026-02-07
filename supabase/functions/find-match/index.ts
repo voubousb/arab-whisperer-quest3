@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
             matchId: existing.id,
             player1Id: existing.player1_id,
             player2Id: existing.player2_id,
+            start_at: existing.start_at,
             _version: VERSION,
             _source: "existing_match",
           }),
@@ -159,7 +160,7 @@ Deno.serve(async (req) => {
 async function getRecentMatchForUser(supabase: any, userId: string, sinceIso: string) {
   const { data, error } = await supabase
     .from("online_matches")
-    .select("id, player1_id, player2_id, status, created_at")
+    .select("id, player1_id, player2_id, status, created_at, start_at")
     .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
     .gte("created_at", sinceIso)
     .in("status", ["playing", "waiting"])
@@ -219,6 +220,8 @@ async function createMatch(
   }
 
   // Créer le match
+  // Créer le match — inclure un `start_at` dans le futur pour synchroniser les clients
+  const startAtIso = new Date(Date.now() + 4000).toISOString(); // démarrage dans ~4s
   const { data: match, error: matchError } = await supabase
     .from("online_matches")
     .insert({
@@ -228,6 +231,7 @@ async function createMatch(
       current_round: 1,
       player1_score: 0,
       player2_score: 0,
+      start_at: startAtIso,
     })
     .select()
     .single();
@@ -250,6 +254,7 @@ async function createMatch(
       matchId: match.id,
       player1Id,
       player2Id,
+      start_at: match.start_at,
       _version: VERSION,
       _source: "created",
     }),
